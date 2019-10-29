@@ -1,0 +1,141 @@
+#include <msp430.h>
+#define DATAPIN BIT0
+#define CLOCKPIN BIT2
+#define LATCHPIN BIT1
+#define DATAPIN2 BIT7
+#define LATCHPIN2 BIT4
+#define LATCHPIN3 BIT5
+#define DATAPIN3 BIT6
+unsigned int counter = 0; // First counter
+unsigned int counter2 = 0; //
+volatile unsigned char second = 50;
+volatile unsigned char second1 = 0;
+volatile unsigned char minutes = 59;
+volatile unsigned char minutes1 = 0;
+volatile unsigned char hours = 0;
+volatile unsigned char hours1 = 0;
+volatile unsigned char istedigimsaat = 1;
+volatile unsigned int j;
+void sayimyap(char sayi);
+void shiftOut(char data);
+void shiftOut2(char data2);
+void shiftOut3(char data3);
+int main(void) {
+
+ P1DIR  |=  DATAPIN + CLOCKPIN + LATCHPIN + DATAPIN2 + LATCHPIN2 + DATAPIN3 + LATCHPIN3 ;
+  WDTCTL = WDTPW + WDTHOLD;   // kill WDT
+  BCSCTL1 = CALBC1_1MHZ; // We set internal counter as 1 MHz.
+  DCOCTL = CALDCO_1MHZ; // We set digitally-controlled oscillator frequency as 1
+  CCTL0 = CCIE; // Here we enabled Capture/compare interrupt.
+  CCR0 = 50000; // Here we set up our timer to work for 50 miliseconds.
+  TACTL = TASSEL_2 + MC_1; // Here we selected TimerA's clock mode as second mode
+
+  P1REN |= BIT3; // Enable P1.3 internal resistance
+  P1OUT |= BIT3; // Set P1.3 as pull up resistance
+  P1IES |= BIT3; // P1.3 High/Low Edge
+  P1IFG &= ~BIT3; // P1.3 IFG Cleared
+  P1IE |= BIT3; // P1.3 Interrupt Enabled
+
+  __enable_interrupt();
+  __bis_SR_register(LPM4_bits + LPM0_bits + GIE); // We selected Low Power Mode 0
+    __no_operation();
+  while(1){}
+  }
+#pragma vector = TIMER0_A0_VECTOR
+__interrupt void Timer_A (void)
+{
+ counter = (counter + 1) % 18; //
+ if (counter == 0)
+ {
+     second++;
+     sayimyap(second);
+ }
+}
+
+void sayimyap(char sayi){
+    second = sayi;
+        hours1 = hours % 24;
+        second1 = second % 60;
+        minutes1 = minutes % 60;
+        P1OUT &= ~LATCHPIN;
+        shiftOut(second1);
+          P1OUT |= LATCHPIN;
+      if ((second1 == 0)||(istedigimsaat==1))
+      {
+          minutes++;
+          P1OUT &= ~LATCHPIN2;
+          shiftOut2(minutes1);
+          P1OUT |= LATCHPIN2;
+          if ((minutes1 == 0)|(istedigimsaat==1))
+          {
+            hours++;
+              P1OUT &= ~LATCHPIN3;
+              shiftOut3(hours1);
+              P1OUT |= LATCHPIN3;
+
+          }
+          }
+
+  istedigimsaat=0;
+}
+#pragma vector = PORT1_VECTOR // This is the definition of pragma vector to use interrupt as
+__interrupt void Port_1 (void)
+{
+       P1OUT &= ~(LATCHPIN+LATCHPIN2+LATCHPIN3);
+       second = 0;
+       minutes = 0;
+       hours = 0;
+       P1OUT |= (LATCHPIN+LATCHPIN2+LATCHPIN3);
+   volatile unsigned int i;
+   i = 50000;
+    do i--;
+    while (i != 0); //These three lines stops code route for about one second to work properly.
+    P1IFG &= ~BIT3;
+ }
+void shiftOut(char data) {
+ volatile int i;
+ for (i = 0; i < 8; i++) {         // 8 bits to a char
+   char bittowrite = (0x01 & data); // get bit
+   data = data >> 1; // shift data left
+   if (bittowrite == 1) {  // send bit
+     P1OUT |= DATAPIN ;
+   } else {
+     P1OUT &= ~DATAPIN;
+   }
+   // pulse clockpin
+   P1DIR |= CLOCKPIN;
+   P1DIR &= ~CLOCKPIN;
+ }
+}
+void shiftOut2(char data2) {
+ volatile int i;
+
+ for (i = 0; i < 8; i++) {         // 8 bits to a char
+   char bittowrite = (0x01 & data2); // get bit
+   data2 = data2 >> 1; // shift data left
+   if (bittowrite == 1) {  // send bit
+     P1OUT |= DATAPIN2  ;
+   } else {
+     P1OUT &= ~DATAPIN2 ;
+   }
+   // pulse clockpin
+   P1DIR |= CLOCKPIN;
+   P1DIR &= ~CLOCKPIN;
+ }
+}
+
+void shiftOut3(char data3) {
+ volatile int i;
+ for (i = 0; i < 8; i++) {  // 8 bits to a char
+   char bittowrite = (0x01 & data3); // get bit
+   data3 = data3 >> 1; // shift data left
+   if (bittowrite == 1) {  // send bit
+     P1OUT |= DATAPIN3 ;
+   } else {
+     P1OUT &= ~DATAPIN3 ;
+   }
+   // pulse clockpin
+   P1DIR |= CLOCKPIN;
+   P1DIR &= ~CLOCKPIN;
+ }
+}
